@@ -18,13 +18,21 @@ walk() {
     printf "[%s]\n" "$(basename "$1")" >>$output
 
     for entry in "$1"/*; do
-        if [[ -f "$entry" ]]; then
+        if [[ -L "$entry" ]]; then
+            continue
+        elif [[ -f "$entry" ]]; then
+            if [[ "$(basename "$entry")" == .* ]]; then
+                continue
+            fi
             filc=$(($filc + 1))
             echo "$(
                 cd "$(dirname "$entry")"
                 pwd -P
             )/$(basename "$entry")" >>$output
         elif [[ -d "$entry" ]]; then
+            if [[ "$(basename "$file")" == .?* ]]; then
+                continue
+            fi
             dirc=$(($dirc + 1))
             push_queue "$entry"
             echo "$(
