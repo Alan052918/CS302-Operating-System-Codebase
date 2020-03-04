@@ -1,7 +1,7 @@
 #!/bin/bash
 dirc=0
 filc=0
-output=file.info
+output=$2
 
 walk() {
     printf "[%s]\n" "$(basename "$1")" >>$output
@@ -30,7 +30,7 @@ walk() {
     done
 }
 
-[ -e $output ] && rm $output # remove file.info if it already exists
+[ -e $output ] && rm $output # remove $2 if it already exists
 walk "$1"
 printf "[Directories Count]:%d\n" "$dirc" >>$output
 printf "[Files Count]:%d\n" "$filc" >>$output
