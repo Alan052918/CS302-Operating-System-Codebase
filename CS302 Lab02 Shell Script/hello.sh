@@ -1,2 +1,2 @@
-#!/bin/zsh
-echo Hello Zsh
+#!/bin/bash
+echo Hello Bash
