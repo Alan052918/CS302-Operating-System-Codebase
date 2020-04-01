@@ -76,12 +76,16 @@ void updateall() {
   /* update ready job's wait_time */
   for (p = head; p != NULL; p = p->next) {
     p->job->wait_time += 1;
+    if (p->job->curpri < 3) {  // max priority value is 3
+      ++(p->job->curpri);
+    }
   }
 }
 
 struct waitqueue *jobselect() {
   struct waitqueue *p, *prev, *select, *selectprev;
   int highest = -1;
+  int longest = -1;  // longest waiting time
 
   select = NULL;
   selectprev = NULL;
@@ -92,14 +96,20 @@ struct waitqueue *jobselect() {
         select = p;
         selectprev = prev;
         highest = p->job->curpri;
+      } else if (p->job->curpri == highest && p->job->wait_time > longest) {
+        // same priority value, job with the longest waiting time is run first
+        select = p;
+        selectprev = prev;
+        longest = p->job->wait_time;
       }
     }
-
-    selectprev->next = select->next;  // remove selected job from waitqueue
-
-    if (select == selectprev) head = NULL;
+    if (select == selectprev) {
+      head = head->next;
+    } else {
+      selectprev->next = select->next;
+    }
+    if (select) select->next = NULL;
   }
-
   return select;
 }
 
@@ -143,16 +153,24 @@ void jobswitch() {
     current->job->state = READY;
 
     /* move back to the queue */
-
-    if (head) {
-      for (p = head; p->next != NULL; p = p->next)
-        ;
-      p->next = current;
+    if (current->job->curpri > next->job->curpri) {
+      if (head != NULL) {
+        p = head;
+        while (p->next != NULL) p = p->next;
+        p->next = next;
+      } else {
+        head = next;
+      }
     } else {
-      head = current;
+      if (head != NULL) {
+        p = head;
+        while (p->next != NULL) p = p->next;
+        p->next = current;
+      } else {
+        head = current;
+      }
+      current = next;
     }
-
-    current = next;
     next = NULL;
     current->job->state = RUNNING;
     kill(current->job->pid, SIGCONT);
@@ -290,6 +308,7 @@ void do_enq(struct jobinfo *newjob, struct jobcmd enqcmd) {
     exit(1);
 
   } else {
+    usleep(100000);
     newjob->pid = pid;
     printf("\nnew job: jid=%d, pid=%d\n", newjob->jid, newjob->pid);
   }
@@ -333,9 +352,13 @@ void do_deq(struct jobcmd deqcmd) {
           break;
         }
       }
-
-      selectprev->next = select->next;
-      if (select == selectprev) head = NULL;
+      if (select) {
+        if (select == selectprev)
+          head = head->next;
+        else
+          selectprev->next = select->next;
+        if (select) select->next = NULL;
+      }
     }
 
     if (select) {
@@ -356,9 +379,9 @@ void do_deq(struct jobcmd deqcmd) {
 void do_stat() {
   /*
    * Print job statistics of all jobs:
-   * 1. job id
-   * 2. job pid
-   * 3. job name
+   * 1. job name
+   * 2. job id
+   * 3. job pid
    * 4. job owner
    * 5. job run time
    * 6. job wait time
@@ -369,22 +392,22 @@ void do_stat() {
   struct waitqueue *p;
   char timebuf[BUFLEN];
 
-  printf("JID\tPID\tNAME\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\tSTATE\n");
+  printf("NAME\tJID\tPID\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\tSTATE\n");
 
   if (current) {
     strcpy(timebuf, ctime(&(current->job->create_time)));
     timebuf[strlen(timebuf) - 1] = '\0';
-    printf("%d\t%d\t%s\t%d\t%d\t%d\t%s\t%s\n", current->job->jid,
-           current->job->pid, current->job->cmdarg[0], current->job->ownerid,
+    printf("%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\n", current->job->cmdarg[0],
+           current->job->jid, current->job->pid, current->job->ownerid,
            current->job->run_time, current->job->wait_time, timebuf, "RUNNING");
   }
 
   for (p = head; p != NULL; p = p->next) {
     strcpy(timebuf, ctime(&(p->job->create_time)));
     timebuf[strlen(timebuf) - 1] = '\0';
-    printf("%d\t%d\t%s\t%d\t%d\t%d\t%s\t%s\n", p->job->jid, p->job->pid,
-           p->job->cmdarg[0], p->job->ownerid, p->job->run_time,
-           p->job->wait_time, timebuf, "READY");
+    printf("%s\t%d\t%d\t%d\t%d\t%d\t%s\t%s\n", p->job->cmdarg[0], p->job->jid,
+           p->job->pid, p->job->ownerid, p->job->run_time, p->job->wait_time,
+           timebuf, "READY");
   }
 
   printf("\n");
@@ -425,7 +448,7 @@ int main() {
   /* timer interval: 0s, 100ms */
 
   interval.tv_sec = 0;
-  interval.tv_usec = 100;
+  interval.tv_usec = 100000;
 
   new.it_interval = interval;
   new.it_value = interval;
