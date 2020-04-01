@@ -88,14 +88,14 @@ struct waitqueue *jobselect() {
 
   if (head) {
     for (prev = head, p = head; p != NULL; prev = p, p = p->next) {
-      if (p->job->curpri > highest) {
+      if (p->job->curpri > highest) {  // select the highest priority job
         select = p;
         selectprev = prev;
         highest = p->job->curpri;
       }
     }
 
-    selectprev->next = select->next;
+    selectprev->next = select->next;  // remove selected job from waitqueue
 
     if (select == selectprev) head = NULL;
   }
@@ -358,32 +358,33 @@ void do_stat() {
    * Print job statistics of all jobs:
    * 1. job id
    * 2. job pid
-   * 3. job owner
-   * 4. job run time
-   * 5. job wait time
-   * 6. job create time
-   * 7. job state
+   * 3. job name
+   * 4. job owner
+   * 5. job run time
+   * 6. job wait time
+   * 7. job create time
+   * 8. job state
    */
 
   struct waitqueue *p;
   char timebuf[BUFLEN];
 
-  printf("JID\tPID\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\tSTATE\n");
+  printf("JID\tPID\tNAME\tOWNER\tRUNTIME\tWAITTIME\tCREATTIME\tSTATE\n");
 
   if (current) {
     strcpy(timebuf, ctime(&(current->job->create_time)));
     timebuf[strlen(timebuf) - 1] = '\0';
-    printf("%d\t%d\t%d\t%d\t%d\t%s\t%s\n", current->job->jid, current->job->pid,
-           current->job->ownerid, current->job->run_time,
-           current->job->wait_time, timebuf, "RUNNING");
+    printf("%d\t%d\t%s\t%d\t%d\t%d\t%s\t%s\n", current->job->jid,
+           current->job->pid, current->job->cmdarg[0], current->job->ownerid,
+           current->job->run_time, current->job->wait_time, timebuf, "RUNNING");
   }
 
   for (p = head; p != NULL; p = p->next) {
     strcpy(timebuf, ctime(&(p->job->create_time)));
     timebuf[strlen(timebuf) - 1] = '\0';
-    printf("%d\t%d\t%d\t%d\t%d\t%s\t%s\n", p->job->jid, p->job->pid,
-           p->job->ownerid, p->job->run_time, p->job->wait_time, timebuf,
-           "READY");
+    printf("%d\t%d\t%s\t%d\t%d\t%d\t%s\t%s\n", p->job->jid, p->job->pid,
+           p->job->cmdarg[0], p->job->ownerid, p->job->run_time,
+           p->job->wait_time, timebuf, "READY");
   }
 
   printf("\n");
